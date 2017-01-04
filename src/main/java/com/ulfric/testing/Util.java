@@ -9,6 +9,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Util {
 
-	Class<?> value();
+	Class<? extends Enum<?>> value();
 
 }

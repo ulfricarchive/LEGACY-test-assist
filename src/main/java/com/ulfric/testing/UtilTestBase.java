@@ -6,7 +6,7 @@ import com.ulfric.verify.Verify;
 
 public class UtilTestBase {
 
-	private final Class<?> util = this.getClass().getAnnotation(Util.class).value();
+	private final Class<? extends Enum<?>> util = this.getClass().getAnnotation(Util.class).value();
 
 	@Test
 	void testIsEnum()
