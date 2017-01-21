@@ -8,7 +8,9 @@ import sun.reflect.ConstructorAccessor;
 import sun.reflect.FieldAccessor;
 import sun.reflect.ReflectionFactory;
 
-final class ReflectionHelper {
+enum ReflectionHelper {
+
+	;
 
     private static final String MODIFIERS_FIELD = "modifiers";
 
@@ -57,11 +59,6 @@ final class ReflectionHelper {
 		System.arraycopy(additional, 0, parms, 2, additional.length);
 
 		return clazz.cast(ca.newInstance(parms));
-	}
-
-	private ReflectionHelper()
-	{
-		throw new IllegalStateException("Cannot be instantiated");
 	}
 
 }

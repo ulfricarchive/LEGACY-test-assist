@@ -38,7 +38,6 @@ final class Memento<E extends Enum<E>> {
 			new EnumHelper<>(this.values[i], this.enumBuster.getClazz()).setOrdinal(i);
 		}
 
-		// reset all of the constants defined inside the enum
 		Map<String, E> valuesMap = new HashMap<>();
 
 		for (E e : this.values)
