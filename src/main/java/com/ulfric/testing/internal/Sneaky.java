@@ -16,11 +16,11 @@ enum Sneaky {
 		}
 	}
 
-	static <T> T tryTo(SneakyProvider<T> provider)
+	static <T> T tryTo(SneakySupplier<T> supplier)
 	{
 		try
 		{
-			return provider.provide();
+			return supplier.supply();
 		}
 		catch (Throwable throwable)
 		{
@@ -34,8 +34,8 @@ enum Sneaky {
 	}
 
 	@FunctionalInterface
-	interface SneakyProvider<T> {
-		T provide() throws Throwable;
+	interface SneakySupplier<T> {
+		T supply() throws Throwable;
 	}
 
 }
