@@ -20,20 +20,25 @@ enum ReflectionHelper {
     {
         field.setAccessible(true);
 
-        Field modifiersField = Field.class.getDeclaredField(MODIFIERS_FIELD);
-
-        modifiersField.setAccessible(true);
-
-        int modifiers = modifiersField.getInt(field);
-
-        modifiers &= ~Modifier.FINAL;
-
-        modifiersField.setInt(field, modifiers);
+		ReflectionHelper.makeNotFinal(field);
 
         FieldAccessor fa = ReflectionHelper.REFLECTION_FACTORY.newFieldAccessor(field, false);
 
         fa.set(null, value);
     }
+
+	private static void makeNotFinal(Field field) throws NoSuchFieldException, IllegalAccessException
+	{
+		Field modifiersField = Field.class.getDeclaredField(MODIFIERS_FIELD);
+
+		modifiersField.setAccessible(true);
+
+		int modifiers = modifiersField.getInt(field);
+
+		modifiers &= ~Modifier.FINAL;
+
+		modifiersField.setInt(field, modifiers);
+	}
 
     static <E> ConstructorAccessor findConstructorAccessor(Class[] additionalParameterTypes, Class<E> clazz) throws NoSuchMethodException
     {

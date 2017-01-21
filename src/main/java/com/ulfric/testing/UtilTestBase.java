@@ -44,8 +44,6 @@ public class UtilTestBase {
 		{
 			e.printStackTrace();
 		}
-
-		buster.restore();
 	}
 
 }

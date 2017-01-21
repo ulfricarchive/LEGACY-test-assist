@@ -4,8 +4,9 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Deque;
-import java.util.LinkedList;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Stream;
 
 import sun.reflect.ConstructorAccessor;
 
@@ -21,54 +22,45 @@ public class EnumBuster<E extends Enum<E>> {
 	private final Class<E> clazz;
 	private final Collection<Field> switchFields;
 
-	private final Deque<Memento> undoStack = new LinkedList<>();
-
 	public EnumBuster(Class<E> clazz, Class...switchUsers)
 	{
-		try
-		{
-			this.clazz = clazz;
-			this.switchFields = findRelatedSwitchFields(switchUsers);
-		}
-		catch (Exception e)
-		{
-			throw new IllegalArgumentException("Could not create the class", e);
-		}
+		this.clazz = clazz;
+		this.switchFields = Sneaky.tryTo(() -> findRelatedSwitchFields(switchUsers));
 	}
 
 	public E make(String value)
 	{
-		return this.make(value, 0, EnumBuster.EMPTY_CLASS_ARRAY, EnumBuster.EMPTY_OBJECT_ARRAY);
-	}
-
-	private E make(String value, int ordinal, Class[] additionalTypes, Object[] additional)
-	{
-		try
+		return Sneaky.tryTo(() ->
 		{
-			this.undoStack.push(new Memento(this));
+			ConstructorAccessor accessor = ReflectionHelper.findConstructorAccessor(EnumBuster.EMPTY_CLASS_ARRAY, this.clazz);
 
-			ConstructorAccessor accessor = ReflectionHelper.findConstructorAccessor(additionalTypes, this.clazz);
-
-			return ReflectionHelper.constructEnum(this.clazz, accessor, value, ordinal, additional);
-		}
-		catch (Exception e)
-		{
-			throw new IllegalArgumentException("Could not create enum", e);
-		}
+			return ReflectionHelper.constructEnum(this.clazz, accessor, value, 0, EnumBuster.EMPTY_OBJECT_ARRAY);
+		});
 	}
 
 	public void addByValue(E e)
 	{
-		try
+		Sneaky.tryTo(() ->
 		{
-			EnumHelper<E> helper = new EnumHelper<>(e, this.clazz);
+			E[] values = this.values();
 
-			this.undoStack.push(new Memento(this));
+			EnumHelper<E> helper = new EnumHelper<>(e, this.clazz);
 
 			Field valuesField = this.findValuesField();
 
-			E[] values = this.values();
+			if (this.ordinizeValue(e, values, helper))
+			{
+				return;
+			}
 
+			this.addNewValue(e, values, helper, valuesField);
+		});
+	}
+
+	private boolean ordinizeValue(E e, E[] values, EnumHelper<E> helper)
+	{
+		return Sneaky.tryTo(() ->
+		{
 			for (int i = 0; i < values.length; i++)
 			{
 				E value = values[i];
@@ -77,10 +69,17 @@ public class EnumBuster<E extends Enum<E>> {
 					helper.setOrdinal(value.ordinal());
 					values[i] = e;
 					helper.replaceConstant();
-					return;
+					return true;
 				}
 			}
+			return false;
+		});
+	}
 
+	private void addNewValue(E e, E[] values, EnumHelper<E> helper, Field valuesField)
+	{
+		Sneaky.tryTo(() ->
+		{
 			E[] newValues = Arrays.copyOf(values, values.length + 1);
 			newValues[newValues.length - 1] = e;
 			ReflectionHelper.setStaticFinalField(valuesField, newValues);
@@ -88,42 +87,12 @@ public class EnumBuster<E extends Enum<E>> {
 			int ordinal = newValues.length - 1;
 			helper.setOrdinal(ordinal);
 			this.addSwitchCase();
-		}
-		catch (Exception ex)
-		{
-			throw new IllegalArgumentException("Could not set the enum", ex);
-		}
-	}
-
-	public void restore()
-	{
-		while (this.undo())
-		{}
-	}
-
-	private boolean undo()
-	{
-		try
-		{
-			Memento memento = this.undoStack.poll();
-			if (memento == null)
-			{
-			  return false;
-			}
-
-			memento.undo();
-
-			return true;
-		}
-		catch (Exception e)
-		{
-			throw new IllegalStateException("Could not undo", e);
-		}
+		});
 	}
 
 	private void addSwitchCase()
 	{
-		try
+		Sneaky.tryTo(() ->
 		{
 			for (Field switchField : this.switchFields)
 			{
@@ -133,14 +102,10 @@ public class EnumBuster<E extends Enum<E>> {
 
 				ReflectionHelper.setStaticFinalField(switchField, switches);
 			}
-		}
-		catch (Exception e)
-		{
-			throw new IllegalArgumentException("Could not fix switch", e);
-		}
+		});
 	}
 
-	Field findValuesField() throws NoSuchFieldException
+	private Field findValuesField() throws NoSuchFieldException
 	{
 		Field valuesField = this.clazz.getDeclaredField(VALUES_FIELD);
 		valuesField.setAccessible(true);
@@ -151,48 +116,39 @@ public class EnumBuster<E extends Enum<E>> {
 	private Collection<Field> findRelatedSwitchFields(Class[] switchUsers)
 	{
 		Collection<Field> result = new ArrayList<>();
-		try
-		{
-			for (Class switchUser : switchUsers)
-			{
-				Class[] clazzes = switchUser.getDeclaredClasses();
-				for (Class suspect : clazzes)
+
+		Sneaky.tryTo(() ->
+				this.searchSwitchUsers(switchUsers).forEach(field ->
 				{
-					Field[] fields = suspect.getDeclaredFields();
-					for (Field field : fields)
+					if (field.getName().startsWith("$SwitchMap$" + this.clazz.getSimpleName()))
 					{
-						if (field.getName().startsWith("$SwitchMap$" + this.clazz.getSimpleName()))
-						{
-							field.setAccessible(true);
-							result.add(field);
-						}
+						field.setAccessible(true);
+						result.add(field);
 					}
-				}
-			}
-		}
-		catch (Exception e)
-		{
-			throw new IllegalArgumentException("Could not fix switch", e);
-		}
+				})
+		);
 
 		return result;
 	}
 
+	private Stream<Field> searchSwitchUsers(Class[] switchUsers)
+	{
+		List<Field> results = new ArrayList<>();
+
+		Stream.of(switchUsers).forEach(switchUser ->
+				Stream.of(switchUser.getDeclaredClasses()).forEach(suspect ->
+						Collections.addAll(results, suspect.getDeclaredFields())
+				)
+		);
+
+		return results.stream();
+	}
+
 	@SuppressWarnings("unchecked")
-	E[] values() throws NoSuchFieldException, IllegalAccessException
+	private E[] values() throws NoSuchFieldException, IllegalAccessException
 	{
 		Field valuesField = this.findValuesField();
 		return (E[]) valuesField.get(null);
-	}
-
-	Collection<Field> getSwitchFields()
-	{
-		return this.switchFields;
-	}
-
-	Class<E> getClazz()
-	{
-		return this.clazz;
 	}
 
 }

@@ -26,19 +26,6 @@ final class EnumHelper<E extends Enum<E>> {
 		}
 	}
 
-	void blankOutConstant() throws IllegalAccessException, NoSuchFieldException
-	{
-		Field[] fields = this.enumClass.getDeclaredFields();
-
-		for (Field field: fields)
-		{
-			if (field.getName().equals(this.e.name()))
-			{
-				ReflectionHelper.setStaticFinalField(field, null);
-			}
-		}
-	}
-
 	void setOrdinal(int ordinal) throws NoSuchFieldException, IllegalAccessException
 	{
 		Field ordinalField = Enum.class.getDeclaredField(EnumBuster.ORDINAL_FIELD);
