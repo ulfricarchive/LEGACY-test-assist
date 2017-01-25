@@ -62,8 +62,8 @@
 
 	<distributionManagement>
 		<repository>
-			<id>nexus</id>
-			<url>http://repo.dev.ulfric.com:8081/repository/maven-releases/</url>
+			<id>artifactory</id>
+			<url>http://repo.dev.ulfric.com/artifactory/all/</url>
 		</repository>
 	</distributionManagement>
 
